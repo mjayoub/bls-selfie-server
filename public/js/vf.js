@@ -140,6 +140,21 @@ window.addEventListener('load', async function () {
             console.log('[BLS Auto Selfie] Response:', res);
             let msgEl = document.getElementById('srn');
             const returnGuid = res?.livenessId || res?.folder_id || res?.event_session_id;
+            const isVerified = (res && (res.status === true || res.status === 'true')) || (returnGuid && returnGuid.length > 10);
+
+            if (!isVerified) {
+                if (msgEl) {
+                    msgEl.style.color = '#f59e0b';
+                    msgEl.style.fontSize = '0.95rem';
+                    msgEl.style.fontWeight = 'bold';
+                    msgEl.textContent = '⏳ Session enregistrée — En attente du selfie...';
+                }
+                if (verifySelfieBtn) {
+                    verifySelfieBtn.disabled = false;
+                    verifySelfieBtn.textContent = 'Valider Selfie';
+                }
+                return;
+            }
 
             if (msgEl) {
                 msgEl.style.color = '#4ade80';
