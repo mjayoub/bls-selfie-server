@@ -123,16 +123,13 @@ window.addEventListener('load', async function () {
             verifySelfieBtn.textContent = '📷 Capture du selfie...';
         }
 
-        // Capture webcam selfie in web mode (not inside extension)
+        // Always capture webcam frame so real face photo (best_shot) is available for BLS Portugal
         let capturedImage = null;
-        const isInsideExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
-        if (!isInsideExtension) {
-            try {
-                capturedImage = await captureWebcamFrame();
-                if (capturedImage) console.log('[BLS Auto Selfie] ✅ Selfie webcam captured');
-            } catch(e) {
-                console.log('[BLS Auto Selfie] Webcam unavailable:', e.message);
-            }
+        try {
+            capturedImage = await captureWebcamFrame();
+            if (capturedImage) console.log('[BLS Auto Selfie] ✅ Selfie webcam photo captured successfully');
+        } catch(e) {
+            console.log('[BLS Auto Selfie] Webcam photo capture unavailable:', e.message);
         }
 
         if (verifySelfieBtn) {
