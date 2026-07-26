@@ -76,9 +76,36 @@ app.post('/api/applications/fetchCem', async (req, res) => {
     const mainCem = await resolveCem(rawId);
     let session = await getSession(mainCem);
     const shouldReset = req.body.reset === true || req.body.reset === 'true' || req.body.forceReset;
+    const isUpdate = req.body.mode === 'update';
 
+    // Preserve already-verified sessions (don't allow re-registration)
     if (session && (session.status === true || session.status === 'true') && session.livenessId) {
         console.log(`[Redis] 🔒 Preserving ALREADY VERIFIED session: SC=${session.shortCode} | LivenessId=${session.livenessId}`);
+        return res.json(session);
+    }
+
+    // Mode 'update': merge new fields into existing session without resetting
+    // Used when bot navigates from Page 1 → Page 2 and needs to add userId/transactionId
+    if (isUpdate && session) {
+        let changed = false;
+        if (req.body.userId && req.body.userId !== session.userId) {
+            session.userId = req.body.userId;
+            changed = true;
+        }
+        if (req.body.transactionId && req.body.transactionId !== session.transactionId) {
+            session.transactionId = req.body.transactionId;
+            changed = true;
+        }
+        if (req.body.shortCode && /^\d{4,8}$/.test(req.body.shortCode) && !session.shortCode) {
+            session.shortCode = req.body.shortCode;
+            await setShortCodeCem(req.body.shortCode, mainCem);
+            changed = true;
+        }
+        if (changed) {
+            session.updatedAt = Date.now();
+            await setSession(mainCem, session);
+            console.log(`[Redis] 📝 Session UPDATED: CEM=${mainCem.substring(0, 20)}... | userId=${session.userId} | txId=${session.transactionId?.substring(0, 20)}`);
+        }
         return res.json(session);
     }
 
@@ -90,8 +117,9 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         session = {
             cem: mainCem,
             shortCode: shortCode,
-            userId: req.body.userId || "USER_" + Math.floor(Math.random() * 100000),
-            transactionId: req.body.transactionId || "TX_" + Date.now(),
+            // Only use bot-provided values; never generate fake userId/transactionId
+            userId: req.body.userId || null,
+            transactionId: req.body.transactionId || null,
             srn: "SRN-" + Date.now(),
             status: false,
             livenessId: null,

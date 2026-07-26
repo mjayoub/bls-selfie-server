@@ -215,14 +215,101 @@ window.addEventListener('load', async function () {
         directApiFetch(appId, capturedImage).then(handleSuccess).catch(handleError);
     };
 
+    // --- OzLiveness SDK Loader (for web mode without Chrome Extension) ---
+    function loadOzLivenessSDK() {
+        return new Promise((resolve, reject) => {
+            if (typeof OzLiveness !== 'undefined') return resolve();
+            const script = document.createElement('script');
+            script.src = 'https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php';
+            script.crossOrigin = 'anonymous';
+            script.onload = () => {
+                // Wait for OzLiveness to become available
+                let attempts = 0;
+                const check = setInterval(() => {
+                    attempts++;
+                    if (typeof OzLiveness !== 'undefined') {
+                        clearInterval(check);
+                        resolve();
+                    }
+                    if (attempts > 50) { // 15s timeout
+                        clearInterval(check);
+                        reject(new Error('OzLiveness SDK did not initialize'));
+                    }
+                }, 300);
+            };
+            script.onerror = () => reject(new Error('Failed to load OzLiveness SDK'));
+            document.head.appendChild(script);
+        });
+    }
+
+    function runOzLivenessSelfie(userId, transactionId, serverEndpoint, cem) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (verifySelfieBtn) {
+                    verifySelfieBtn.textContent = '📷 Chargement du SDK Selfie...';
+                }
+                await loadOzLivenessSDK();
+                if (verifySelfieBtn) {
+                    verifySelfieBtn.textContent = '🎥 Selfie vidéo en cours...';
+                }
+                OzLiveness.open({
+                    lang: 'en',
+                    meta: {
+                        'user_id': userId,
+                        'transaction_id': transactionId
+                    },
+                    action: ['video_selfie_blank'],
+                    on_complete: function(result) {
+                        const eventSessionId = result.event_session_id || result.eventSessionId || transactionId;
+                        // Report verification to our server
+                        fetch(serverEndpoint + '/api/applications/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                event_session_id: eventSessionId,
+                                livenessId: eventSessionId,
+                                userId: userId,
+                                transactionId: transactionId,
+                                cem: cem,
+                                shortCode: cem
+                            })
+                        })
+                        .then(r => r.json())
+                        .then(data => resolve({ ...data, livenessId: eventSessionId, event_session_id: eventSessionId }))
+                        .catch(err => reject(err));
+                    },
+                    on_error: function(error) {
+                        reject(new Error('OzLiveness error: ' + (error?.message || JSON.stringify(error))));
+                    }
+                });
+            } catch(err) {
+                reject(err);
+            }
+        });
+    }
+
     const directApiFetch = async (appId, imageData) => {
         const baseBody = { cem: appId, shortCode: appId };
-        await fetch('/api/applications/fetchCem', {
+        const fetchRes = await fetch('/api/applications/fetchCem', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(baseBody)
         });
-        // Include selfie image in verify request so LivenessHandler can retrieve it
+        const session = await fetchRes.json();
+
+        // If server has real OzLiveness transactionId/userId, launch SDK for real video selfie
+        if (session && session.transactionId && session.userId &&
+            !session.transactionId.startsWith('TX_') && session.transactionId.length > 10) {
+            console.log('[BLS Auto Selfie] 🎯 Real OzLiveness session found — launching SDK video selfie');
+            console.log('[BLS Auto Selfie] userId:', session.userId, '| transactionId:', session.transactionId);
+
+            // Determine server endpoint from current location
+            const serverEndpoint = window.location.origin;
+            return await runOzLivenessSelfie(session.userId, session.transactionId, serverEndpoint, appId);
+        }
+
+        // Fallback: no real OzLiveness metadata — use webcam capture + verify
+        console.log('[BLS Auto Selfie] No OzLiveness metadata available — using webcam capture fallback');
         const verifyBody = { ...baseBody };
         if (imageData) verifyBody.best_shot = imageData;
         const res = await fetch('/api/applications/verify', {
