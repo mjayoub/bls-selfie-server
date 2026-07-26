@@ -139,11 +139,39 @@ window.addEventListener('load', async function () {
         const handleSuccess = (res) => {
             console.log('[BLS Auto Selfie] Response:', res);
             let msgEl = document.getElementById('srn');
+            const returnGuid = res?.livenessId || res?.folder_id || res?.event_session_id;
+
             if (msgEl) {
                 msgEl.style.color = '#4ade80';
-                msgEl.style.fontSize = '1.1rem';
+                msgEl.style.fontSize = '1rem';
                 msgEl.style.fontWeight = 'bold';
-                msgEl.textContent = '✅ Selfie Validé avec Succès pour le Code : ' + appId;
+                
+                let guidHtml = '';
+                if (returnGuid && returnGuid.length > 10) {
+                    guidHtml = `
+                        <div style="margin-top: 10px; padding: 10px; background: rgba(22, 163, 74, 0.25); border: 2px solid #22c55e; border-radius: 12px; text-align: center;">
+                            <div style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">🔑 VOTRE JETON CLIENT (GUID) :</div>
+                            <div style="font-size: 13px; font-family: monospace; color: #ffffff; word-break: break-all; margin-bottom: 6px;">${returnGuid}</div>
+                            <button type="button" id="copyClientGuidBtn" style="padding: 6px 12px; background: #22c55e; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer;">
+                                📋 Copier le Jeton
+                            </button>
+                        </div>
+                    `;
+                }
+
+                msgEl.innerHTML = `✅ Selfie Validé avec Succès !${guidHtml}`;
+
+                setTimeout(() => {
+                    const copyBtn = document.getElementById('copyClientGuidBtn');
+                    if (copyBtn) {
+                        copyBtn.addEventListener('click', () => {
+                            navigator.clipboard.writeText(returnGuid).then(() => {
+                                copyBtn.textContent = '✅ Jeton Copié !';
+                                setTimeout(() => copyBtn.textContent = '📋 Copier le Jeton', 2000);
+                            });
+                        });
+                    }
+                }, 100);
             }
 
             if (verifySelfieBtn) {
