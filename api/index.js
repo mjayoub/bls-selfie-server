@@ -77,6 +77,11 @@ app.post('/api/applications/fetchCem', async (req, res) => {
     let session = await getSession(mainCem);
     const shouldReset = req.body.reset === true || req.body.reset === 'true' || req.body.forceReset;
 
+    if (session && (session.status === true || session.status === 'true') && session.livenessId) {
+        console.log(`[Redis] 🔒 Preserving ALREADY VERIFIED session: SC=${session.shortCode} | LivenessId=${session.livenessId}`);
+        return res.json(session);
+    }
+
     if (!session || shouldReset) {
         const shortCode = (req.body.shortCode && /^\d{4,8}$/.test(req.body.shortCode))
             ? req.body.shortCode
