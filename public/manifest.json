@@ -1,0 +1,15 @@
+{
+  "name": "Nova Selfie BLS",
+  "short_name": "NovaSelfie",
+  "start_url": "/routes/verifyLiveness.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#534AB7",
+  "icons": [
+    {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAAsTAAALEwEAmpwYAAADsElEQVR4nO2bv28TQRTHP+/OH3HihFAkJIpAQgNFiRIFHRJSgghBQUVDRUkUFPwFioqChgKRKChASUGJAgWJioREioRERUIiRUIiRUKi4A84O3u2z+duvX47x3eW9kmzff74vvf2ze7tWyMiopm02wAcYBx4DTwC3gEPgfvAQ+Ah8AC4788P/fchf/7vzz8b7Xb7IfAVOAb2A44Bf4AD4A/wE/gJfAW+A1+A95UjUukV8AU4LhFvAwe+/xL4Bnyu2w0PqgI+AN8qBqgDfgCfqvbDg4qAt8AXP+B1wFfgy7D74UCRgC/AT+ALw3w2V0h/An5W6Y8LgZ29W/l1jEgf4A5wEHgEXCkbVFXwAvgF7FXtxw13W/0m8B74431eB3wAvgxrn1xogc/APnDi+8gT30f2q3ZFBV/oBfgInJg7e+C/X1XtyYkCgB/APnBiaec98KFiT07sAV8M2C3z7Y/A64q+nNkGPhloR/y7VdGTswbgowF1zLdfAncresrFvwx0lvh2o6InZ48Zf7c+02tG8q8qerLhV+u1/A1g3y38053gvw+8k83gZ6c5+W2/Xsnk91MyeX+b/oW/40+W6l54z/s7/v2s1+u9kMnvp2Tq8Xm73e6wDHyf/hZ+z/t6vd6Dmv12n2R+/65er/cE8B2f8Xq9/k6tfrtPvE+/6vV6D6v2/J+e8a7X672s0vN31er1eue1+/0fO/vW6/W61er5m3q93nmlfv2+1+t9KuvV8/8B1r8/1uV8gH8AAAAASUVORK5CYII=",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
