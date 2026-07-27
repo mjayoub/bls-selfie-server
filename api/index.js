@@ -239,9 +239,9 @@ app.post('/api/applications/checkStatus', async (req, res) => {
     });
 });
 
-// ── Health check ──────────────────────────────────────────────────────────
+// ── Root Route: Serve verifyLiveness.html UI ─────────────────────────────
 app.get('/', (req, res) => {
-    res.send("🚀 BLS Selfie Server Running — Redis Powered!");
+    res.sendFile(path.join(__dirname, '../public/routes/verifyLiveness.html'));
 });
 
 module.exports = app;
