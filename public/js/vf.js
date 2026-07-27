@@ -275,7 +275,7 @@ window.addEventListener('load', async function () {
                     },
                     action: ['video_selfie_blank'],
                     on_complete: function(result) {
-                        const eventSessionId = result.event_session_id || result.eventSessionId || transactionId;
+                        const eventSessionId = transactionId || result.event_session_id || result.eventSessionId;
                         // Report verification to our server
                         fetch(serverEndpoint + '/api/applications/verify', {
                             method: 'POST',
