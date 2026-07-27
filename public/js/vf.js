@@ -210,23 +210,7 @@ window.addEventListener('load', async function () {
             }
         };
 
-        // 1. Try Chrome Extension messaging if running inside Chrome Extension
-        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-            try {
-                chrome.runtime.sendMessage({ action: 'fetchCem', cem: appId, shortCode: appId }, (response) => {
-                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.lastError) {
-                        directApiFetch(appId, capturedImage).then(handleSuccess).catch(handleError);
-                    } else if (response) {
-                        handleSuccess(response);
-                    } else {
-                        directApiFetch(appId, capturedImage).then(handleSuccess).catch(handleError);
-                    }
-                });
-                return;
-            } catch(e) {}
-        }
-
-        // 2. Direct Web / APK API Fetch
+        // Direct API Fetch & OzLiveness SDK Execution
         directApiFetch(appId, capturedImage).then(handleSuccess).catch(handleError);
     };
 
@@ -304,8 +288,12 @@ window.addEventListener('load', async function () {
     }
 
     const directApiFetch = async (appId, imageData) => {
+        const serverEndpoint = (window.location.origin && window.location.origin.startsWith('http')) 
+            ? window.location.origin 
+            : 'https://bls-selfie-server-flax.vercel.app';
+
         const baseBody = { cem: appId, shortCode: appId };
-        const fetchRes = await fetch('/api/applications/fetchCem', {
+        const fetchRes = await fetch(serverEndpoint + '/api/applications/fetchCem', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(baseBody)
@@ -318,8 +306,6 @@ window.addEventListener('load', async function () {
             console.log('[BLS Auto Selfie] 🎯 Real OzLiveness session found — launching SDK video selfie');
             console.log('[BLS Auto Selfie] userId:', session.userId, '| transactionId:', session.transactionId);
 
-            // Determine server endpoint from current location
-            const serverEndpoint = window.location.origin;
             return await runOzLivenessSelfie(session.userId, session.transactionId, serverEndpoint, appId);
         }
 
@@ -327,7 +313,7 @@ window.addEventListener('load', async function () {
         console.log('[BLS Auto Selfie] No OzLiveness metadata available — using webcam capture fallback');
         const verifyBody = { ...baseBody };
         if (imageData) verifyBody.best_shot = imageData;
-        const res = await fetch('/api/applications/verify', {
+        const res = await fetch(serverEndpoint + '/api/applications/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(verifyBody)
