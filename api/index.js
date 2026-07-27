@@ -228,6 +228,7 @@ app.post('/api/applications/checkStatus', async (req, res) => {
         return res.json({
             status: true,
             livenessId: session.livenessId,
+            best_shot: session.best_shot || null,
             message: "Selfie passed"
         });
     }
