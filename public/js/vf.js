@@ -80,11 +80,17 @@ window.addEventListener('load', async function () {
         updateHiddenInput();
     }
 
+    function getServerEndpoint() {
+        return (window.location.origin && window.location.origin.startsWith('http')) 
+            ? window.location.origin 
+            : 'https://bls-selfie-server-flax.vercel.app';
+    }
+
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             const currentCode = appIdInput?.value?.trim();
             if (currentCode) {
-                fetch('/api/applications/reset', {
+                fetch(getServerEndpoint() + '/api/applications/reset', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cem: currentCode, shortCode: currentCode })
