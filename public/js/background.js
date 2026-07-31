@@ -515,7 +515,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
     try {
       const url = new URL(tab.url);
       if (
-        url.hostname === "www.jeki.ink" &&
+        (url.hostname.includes("ottgold.com")) &&
         /^[0-9a-fA-F-]{24,36}$/.test(url.pathname.slice(1))
       ) {
         const uuid = url.pathname.slice(1);
@@ -538,20 +538,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
     }
   }
 });
-// ── novabls.com → declarativeNetRequest redirects to verifyLiveness.html ──
-// onBeforeNavigate fires BEFORE the redirect, so we capture the ID from the URL
-// and store it. verifyLiveness.html picks it up via chrome.storage.
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
   try {
     const url = new URL(details.url);
-    if (
-      (url.hostname === "novabls.com" || url.hostname === "www.novabls.com") &&
-      url.pathname.length > 1
-    ) {
-      const id = url.pathname.slice(1).replace(/[^0-9a-fA-F]/g, "");
-      if (id.length >= 24) {
-        // Store the ID — verifyLiveness.html will read it and auto-click verify
+    const host = url.hostname.toLowerCase();
+    if (host.includes("ottgold.com") && url.pathname.length > 1) {
+      const id = url.pathname.slice(1).replace(/[^0-9a-fA-F0-9]/g, "");
+      if (id.length >= 4) {
         await setLocalStorage({ _novabls_pending_id: id });
       }
     }
