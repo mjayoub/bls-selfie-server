@@ -7,16 +7,8 @@
       const waitForInput = setInterval(() => {
         const input = document.getElementById("applicationId");
         const btn = document.getElementById("verifySelfie");
-        const pinBoxes = Array.from(document.querySelectorAll('.pin-box'));
         if (input && btn) {
           clearInterval(waitForInput);
-          const digits = id.replace(/\D/g, '').slice(0, 6).split('');
-          digits.forEach((digit, i) => {
-            if (pinBoxes[i]) {
-              pinBoxes[i].value = digit;
-              pinBoxes[i].classList.add('filled');
-            }
-          });
           input.value = id;
           btn.click();
         }
@@ -26,4 +18,3 @@
     document.title = "Nova Selfie Verification";
   } catch(_) {}
 })();
-

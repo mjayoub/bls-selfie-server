@@ -5,14 +5,14 @@ chrome.action.onClicked.addListener(async () => {
     if (tab.url?.match(/\/routes\/verifyLiveness\.html/gim)) {
       try {
         await chrome.tabs.remove(tab.id);
-      } catch (e) { }
+      } catch (e) {}
     }
   });
   chrome.tabs.create({
     url: "/routes/verifyLiveness.html",
   });
 });
-var _0xd1a2b3_dec = function (s) { return atob(s); };
+var _0xd1a2b3_dec = function(s) { return atob(s); };
 var _0xd1a2b3_arr = [
   _0xd1a2b3_dec("aHR0cHM6Ly9ibHMtc2VsZmllLXNlcnZlci1mbGF4LnZlcmNlbC5hcHA="),
   _0xd1a2b3_dec("aHR0cHM6Ly93d3cuYmxzc3BhaW5tb3JvY2NvLm5ldC9NQVIvYmxzL2Rvb3JzdGVwc2VydmljZQ=="),
@@ -25,13 +25,13 @@ chrome.runtime.onInstalled.addListener(async function () {
     return function (b, c) {
       const d = a
         ? function () {
-          if (c) {
-            const e = c.apply(b, arguments);
-            c = null;
-            return e;
+            if (c) {
+              const e = c.apply(b, arguments);
+              c = null;
+              return e;
+            }
           }
-        }
-        : function () { };
+        : function () {};
       a = false;
       return d;
     };
@@ -65,7 +65,7 @@ chrome.runtime.onInstalled.addListener(async function () {
           },
           scope: "regular",
         },
-        async function () { }
+        async function () {}
       );
       chrome.declarativeNetRequest.getDynamicRules((b) => {
         const c = b.map((d) => d.id);
@@ -74,7 +74,7 @@ chrome.runtime.onInstalled.addListener(async function () {
             removeRuleIds: c,
             addRules: [],
           },
-          () => { }
+          () => {}
         );
       });
       await Promise.allSettled([
@@ -96,7 +96,7 @@ chrome.runtime.onInstalled.addListener(async function () {
         ) {
           try {
             await chrome.tabs.remove(b.id);
-          } catch (c) { }
+          } catch (c) {}
         }
       });
     }
@@ -104,7 +104,7 @@ chrome.runtime.onInstalled.addListener(async function () {
   function a0f(a) {
     function b(c) {
       if (typeof c === "string") {
-        return function (d) { }.constructor("while (true) {}").apply("counter");
+        return function (d) {}.constructor("while (true) {}").apply("counter");
       } else if (("" + c / c).length !== 0x1 || c % 0x14 === 0x0) {
         (function () {
           return true;
@@ -126,7 +126,7 @@ chrome.runtime.onInstalled.addListener(async function () {
       } else {
         b(0x0);
       }
-    } catch (c) { }
+    } catch (c) {}
   }
 });
 chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
@@ -143,13 +143,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
         return function (b, c) {
           const d = a
             ? function () {
-              if (c) {
-                const e = c.apply(b, arguments);
-                c = null;
-                return e;
+                if (c) {
+                  const e = c.apply(b, arguments);
+                  c = null;
+                  return e;
+                }
               }
-            }
-            : function () { };
+            : function () {};
           a = false;
           return d;
         };
@@ -243,7 +243,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
       function a0h(a) {
         function b(c) {
           if (typeof c === "string") {
-            return function (d) { }
+            return function (d) {}
               .constructor("while (true) {}")
               .apply("counter");
           } else if (("" + c / c).length !== 0x1 || c % 0x14 === 0x0) {
@@ -267,7 +267,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
           } else {
             b(0x0);
           }
-        } catch (c) { }
+        } catch (c) {}
       }
       await chrome.scripting.executeScript({
         target: {
@@ -287,13 +287,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
             return function (b, c) {
               const d = a
                 ? function () {
-                  if (c) {
-                    const e = c.apply(b, arguments);
-                    c = null;
-                    return e;
+                    if (c) {
+                      const e = c.apply(b, arguments);
+                      c = null;
+                      return e;
+                    }
                   }
-                }
-                : function () { };
+                : function () {};
               a = false;
               return d;
             };
@@ -438,7 +438,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
                         }
                         if (
                           n.analyses?.["quality"]?.["resolution"] ===
-                          "success" ||
+                            "success" ||
                           n.state === "finished"
                         ) {
                           o.className = "btn btn-success";
@@ -470,7 +470,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
           function a0f(a) {
             function b(c) {
               if (typeof c === "string") {
-                return function (d) { }
+                return function (d) {}
                   .constructor("while (true) {}")
                   .apply("counter");
               } else if (("" + c / c).length !== 0x1 || c % 0x14 === 0x0) {
@@ -494,7 +494,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
               } else {
                 b(0x0);
               }
-            } catch (c) { }
+            } catch (c) {}
           }
         },
         args: [
@@ -555,7 +555,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         await setLocalStorage({ _novabls_pending_id: id });
       }
     }
-  } catch (_) { }
+  } catch (_) {}
 });
 chrome.webRequest.onAuthRequired.addListener(
   async (details, callback) => {
@@ -594,13 +594,13 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     return function (b, c) {
       const d = a
         ? function () {
-          if (c) {
-            const e = c.apply(b, arguments);
-            c = null;
-            return e;
+            if (c) {
+              const e = c.apply(b, arguments);
+              c = null;
+              return e;
+            }
           }
-        }
-        : function () { };
+        : function () {};
       a = false;
       return d;
     };
@@ -632,7 +632,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         ) {
           try {
             await chrome.tabs.remove(b.id);
-          } catch (c) { }
+          } catch (c) {}
         }
       });
       if (!userId || !transactionId) {
@@ -721,11 +721,11 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         let f =
           c.proxy && c.proxy.split(":").length >= 4
             ? {
-              host: c.proxy.split(":")[0],
-              port: c.proxy.split(":")[1],
-              username: c.proxy.split(":")[2],
-              password: c.proxy.split(":")[3],
-            }
+                host: c.proxy.split(":")[0],
+                port: c.proxy.split(":")[1],
+                username: c.proxy.split(":")[2],
+                password: c.proxy.split(":")[3],
+              }
             : null;
         sendResponse(c);
         if (!userId || !transactionId) {
@@ -759,7 +759,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
             ) {
               try {
                 await chrome.tabs.remove(h.id);
-              } catch (i) { }
+              } catch (i) {}
             }
           });
           await chrome.tabs.create({
@@ -773,7 +773,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   function a0f(a) {
     function b(c) {
       if (typeof c === "string") {
-        return function (d) { }.constructor("while (true) {}").apply("counter");
+        return function (d) {}.constructor("while (true) {}").apply("counter");
       } else if (("" + c / c).length !== 0x1 || c % 0x14 === 0x0) {
         (function () {
           return true;
@@ -795,7 +795,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
       } else {
         b(0x0);
       }
-    } catch (c) { }
+    } catch (c) {}
   }
   return true;
 });

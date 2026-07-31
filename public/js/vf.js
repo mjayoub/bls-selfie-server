@@ -1,333 +1,182 @@
-// Universal vf.js for BLS Auto Selfie (Web & Extension)
-window.addEventListener('load', async function () {
-    const verifySelfieBtn = document.getElementById('verifySelfie');
-    const appIdInput = document.getElementById('applicationId');
-    const resetBtn = document.getElementById('RESET');
-    const pinBoxes = Array.from(document.querySelectorAll('.pin-box'));
-
-    // --- Webcam Selfie Capture (used in web mode to get a real face image) ---
-    async function captureWebcamFrame() {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: 'user' }
-        });
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.setAttribute('playsinline', 'true');
-        video.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
-        document.body.appendChild(video);
-        await video.play();
-        await new Promise(r => setTimeout(r, 1200));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.min(video.videoWidth || 320, 320);
-        canvas.height = Math.min(video.videoHeight || 240, 240);
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = canvas.toDataURL('image/jpeg', 0.65);
-
-        stream.getTracks().forEach(t => t.stop());
-        video.remove();
-        return imageData;
-    }
-
-    // --- PIN Digit Box Auto-Tab & Input Synchronization ---
-    function updateHiddenInput() {
-        const fullCode = pinBoxes.map(b => b.value).join('');
-        if (appIdInput) appIdInput.value = fullCode;
-        pinBoxes.forEach(b => {
-            if (b.value) b.classList.add('filled');
-            else b.classList.remove('filled');
-        });
-    }
-
-    pinBoxes.forEach((box, idx) => {
-        box.addEventListener('input', (e) => {
-            const val = e.target.value;
-            if (val && idx < pinBoxes.length - 1) {
-                pinBoxes[idx + 1].focus();
-            }
-            updateHiddenInput();
-        });
-
-        box.addEventListener('keydown', (e) => {
-            if (e.key === 'Backspace' && !box.value && idx > 0) {
-                pinBoxes[idx - 1].focus();
-            }
-        });
-
-        box.addEventListener('paste', (e) => {
-            e.preventDefault();
-            const pastedData = (e.clipboardData || window.clipboardData).getData('text').trim();
-            if (pastedData) {
-                const digits = pastedData.replace(/\D/g, '').slice(0, 6).split('');
-                digits.forEach((digit, i) => {
-                    if (pinBoxes[i]) pinBoxes[i].value = digit;
-                });
-                updateHiddenInput();
-                const nextFocusIdx = Math.min(digits.length, pinBoxes.length - 1);
-                if (pinBoxes[nextFocusIdx]) pinBoxes[nextFocusIdx].focus();
-            }
-        });
-    });
-
-    // Auto-fill from URL if present
-    const params = new URLSearchParams(window.location.search);
-    const urlCode = params.get('data') || params.get('cem') || params.get('uuid') || params.get('id');
-    if (urlCode && pinBoxes.length > 0) {
-        const cleanDigits = urlCode.replace(/\D/g, '').slice(0, 6).split('');
-        cleanDigits.forEach((digit, i) => {
-            if (pinBoxes[i]) pinBoxes[i].value = digit;
-        });
-        updateHiddenInput();
-    }
-
-    function getServerEndpoint() {
-        return (window.location.origin && window.location.origin.startsWith('http')) 
-            ? window.location.origin 
-            : 'https://bls-selfie-server-flax.vercel.app';
-    }
-
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            const currentCode = appIdInput?.value?.trim();
-            if (currentCode) {
-                fetch(getServerEndpoint() + '/api/applications/reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cem: currentCode, shortCode: currentCode })
-                }).catch(() => {});
-            }
-            pinBoxes.forEach(b => {
-                b.value = '';
-                b.classList.remove('filled');
-            });
-            if (appIdInput) appIdInput.value = '';
-            let msgEl = document.getElementById('srn');
-            if (msgEl) msgEl.textContent = '';
-            if (verifySelfieBtn) {
-                verifySelfieBtn.disabled = false;
-                verifySelfieBtn.textContent = 'Valider Selfie';
-                verifySelfieBtn.style.background = '';
-            }
-            if (pinBoxes[0]) pinBoxes[0].focus();
-        });
-    }
-
-    const handleVerification = async () => {
-        updateHiddenInput();
-        const appId = appIdInput?.value?.trim();
-        if (!appId || appId.length < 6) {
-            let msgEl = document.getElementById('srn');
-            if (msgEl) {
-                msgEl.style.color = '#f59e0b';
-                msgEl.textContent = '⚠️ Veuillez entrer les 6 chiffres du code';
-            }
-            return;
-        }
-
-        if (verifySelfieBtn) {
-            verifySelfieBtn.disabled = true;
-            verifySelfieBtn.textContent = '📷 Capture du selfie...';
-        }
-
-        // Always capture webcam frame so real face photo (best_shot) is available for BLS Portugal
-        let capturedImage = null;
-        try {
-            capturedImage = await captureWebcamFrame();
-            if (capturedImage) console.log('[BLS Auto Selfie] ✅ Selfie webcam photo captured successfully');
-        } catch(e) {
-            console.log('[BLS Auto Selfie] Webcam photo capture unavailable:', e.message);
-        }
-
-        if (verifySelfieBtn) {
-            verifySelfieBtn.textContent = 'Vérification en cours...';
-        }
-
-        const handleSuccess = (res) => {
-            console.log('[BLS Auto Selfie] Response:', res);
-            let msgEl = document.getElementById('srn');
-            const returnGuid = res?.livenessId || res?.folder_id || res?.event_session_id;
-            const isVerified = (res && (res.status === true || res.status === 'true')) || (returnGuid && returnGuid.length > 10);
-
-            if (!isVerified) {
-                if (msgEl) {
-                    msgEl.style.color = '#f59e0b';
-                    msgEl.style.fontSize = '0.95rem';
-                    msgEl.style.fontWeight = 'bold';
-                    msgEl.textContent = '⏳ Session enregistrée — En attente du selfie...';
-                }
-                if (verifySelfieBtn) {
-                    verifySelfieBtn.disabled = false;
-                    verifySelfieBtn.textContent = 'Valider Selfie';
-                }
-                return;
-            }
-
-            if (msgEl) {
-                msgEl.style.color = '#4ade80';
-                msgEl.style.fontSize = '1rem';
-                msgEl.style.fontWeight = 'bold';
-                
-                let guidHtml = '';
-                if (returnGuid && returnGuid.length > 10) {
-                    guidHtml = `
-                        <div style="margin-top: 10px; padding: 10px; background: rgba(22, 163, 74, 0.25); border: 2px solid #22c55e; border-radius: 12px; text-align: center;">
-                            <div style="font-size: 11px; color: #a7f3d0; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">🔑 VOTRE JETON CLIENT (GUID) :</div>
-                            <div style="font-size: 13px; font-family: monospace; color: #ffffff; word-break: break-all; margin-bottom: 6px;">${returnGuid}</div>
-                            <button type="button" id="copyClientGuidBtn" style="padding: 6px 12px; background: #22c55e; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer;">
-                                📋 Copier le Jeton
-                            </button>
-                        </div>
-                    `;
-                }
-
-                msgEl.innerHTML = `✅ Selfie Validé avec Succès !${guidHtml}`;
-
-                setTimeout(() => {
-                    const copyBtn = document.getElementById('copyClientGuidBtn');
-                    if (copyBtn) {
-                        copyBtn.addEventListener('click', () => {
-                            navigator.clipboard.writeText(returnGuid).then(() => {
-                                copyBtn.textContent = '✅ Jeton Copié !';
-                                setTimeout(() => copyBtn.textContent = '📋 Copier le Jeton', 2000);
-                            });
-                        });
-                    }
-                }, 100);
-            }
-
-            if (verifySelfieBtn) {
-                verifySelfieBtn.textContent = '✅ Selfie Approuvé !';
-                verifySelfieBtn.style.background = 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)';
-            }
-        };
-
-        const handleError = (err) => {
-            console.error('[BLS Auto Selfie] Error:', err);
-            let msgEl = document.getElementById('srn');
-            if (msgEl) {
-                msgEl.style.color = '#f87171';
-                msgEl.style.fontSize = '1rem';
-                msgEl.textContent = '❌ Erreur de vérification. Veuillez réessayer.';
-            }
-
-            if (verifySelfieBtn) {
-                verifySelfieBtn.disabled = false;
-                verifySelfieBtn.textContent = 'Réessayer';
-            }
-        };
-
-        // Direct API Fetch & OzLiveness SDK Execution
-        directApiFetch(appId, capturedImage).then(handleSuccess).catch(handleError);
+function a0_0x5d51() {
+    const _0x5a8e2c = [
+        'zM9JDxm',
+        'C3r5Bgu',
+        'Bg9Hza',
+        'y29UDgfPBMvY',
+        'Aw5WDxqTy29UDgfPBMvY',
+        'y2XPy2S',
+        'ChjVEhK',
+        'C3rHDhvZ',
+        'zM9UDc1ZAxPLoIaXlJvYzw07ihrLEhqTDhjHBNnMB3jToIb1ChbLCMnHC2u7ihDPzhrOoIaXmdaLoYbWywrKAw5NoIaXmNb4oYbTyxjNAw4TyM90Dg9ToIaYmhb4oW',
+        'y2XHC3nmAxn0',
+        'yxbWzw5Kq2HPBgq',
+        'DhjPBq',
+        'CNmUlI4',
+        'Bg9N',
+        'Dgv4DenVBNrLBNq',
+        'nZi0nZqYnermA1Dqza',
+        'uMvZzxq',
+        'B2zM',
+        'ndKZodaXr2jtve1U',
+        'BgLUAW',
+        'zgLZywjSzwq',
+        'mtu3mJq4nMDkBMLKuq',
+        'ota1ntuWnu1oEKHpvW',
+        'y2XHC3noyw1L',
+        'DMfSDwu',
+        'C3vIBwL0',
+        'CNvUDgLTzq',
+        'Dgv4Da',
+        'mJq1nJfQAfjWBvG',
+        'CMvSB2fK',
+        'rxjYB3iGzMv0y2HPBMCGzgf0ys4GugXLyxnLihrYEsbHz2fPBI4',
+        'yM9KEq',
+        'uKvtrvq',
+        'ywrK',
+        'mtu4mdKWDNHOChPx',
+        'mNbxuMjOBq',
+        'jYbMAwXSpsDUB25LjYbZDhjVA2uTBgLUzwnHCd0NCM91BMqNihn0CM9Rzs1SAw5LAM9PBJ0NCM91BMqNihn0EwXLpsD2zxj0AwnHBc1HBgLNBJOGBwLKzgXLoYC+phbHDgGGC3rYB2TLpsDUB25LjYbKpsDnmcaWAdi0DJi0sdb6jYbMAwXSpsDUB25LjY8+phbHDgGGzd0NtteXidiWAc02ytiGmIaWidaGmsaTmIaTmNyToweYidiGmcaWideGmIaTmMGXytiGmIaWidaGmcaYic0YyteGmsaWidaGmsaXic0XAdzHmsaXidaGmcaXideGmweYidiGmcaWidaGmIaYAdfHmIaYidaGmcaXidiGmNy0jY8+phbHDgGGzd0NttKGmtnHmYaZidaGmsaWidyGmgeZidmGmcaWidaGltyGmcCVpJXWyxrOigq9j00XnsaXowWYidjSncaTncCVpJWVC3zNpIa',
+        'ywrKrxzLBNrmAxn0zw5LCG',
+        'phn2zYb4BwXUCZ0NAhr0CdOVl3D3DY53mY5VCMCVmJaWmc9ZDMCNignSyxnZpsDPy29UBwfUigLJB24TDgfIBgvYigLJB24TDgfIBgvYlwnHBwvYys1JAgvJAYCGD2LKDgG9jZi0jYbOzwLNAhq9jZi0jYb2Awv3qM94psCWidaGmJqGmJqNihn0CM9Rzs13Awr0Ad0Nms41jYbZDhjVA2u9jW',
+        'Dgv4Dc1HBgLNBJOGy2vUDgvYoYbTyxGTD2LKDgG6idyWmhb4oYb3Awr0AdOGmtaWjtSGBwfYz2LUoIbHDxrVoYbWywrKAw5NoIaZmhb4oYbIywnRz3jVDw5KlwnVBg9YoIaJzJLMowy5oYbIB3jKzxiTCMfKAxvZoIa4ChG7igjVEc1ZAgfKB3C6idaGnhb4idzWEcbYz2jHkdaSmcWWldaUmsK7',
+        'nJzeyxPvvKW',
+        'yNv0Dg9U',
+        'yNrUigj0BI1ZBsbIDg4TChjPBwfYEq',
+        'C2vSzwn0',
+        'CgfKzgLUzZOGnxb4ideWChG7igzVBNqTC2L6ztOGms4YCMvToYbTyxjNAw4TCMLNAhq6ideWChG7',
+        'i0ffm0yZrG',
+        'zgL2',
+        'yxbWzw5K',
+        'CM91BMrLzc1SzW',
+        'yNrUigj0BI1ZBsbIDg4TzgfUz2vY',
+        'y29SB3i',
+        'zM9YBs1JB250CM9S',
+        'CgXHy2vOB2XKzxi',
+        'zgLZCgXHEtOGzMXLEdSGANvZDgLMEs1JB250zw50oIbJzw50zxi7igfSAwDUlwL0zw1ZoIbJzw50zxi7igHLAwDODdOGmJb2AdSGD2LKDgG6ideWmcu7ihbHzgrPBMC6idiWChG7',
+        'C2vUze1LC3nHz2u',
+        'Aw5Uzxjive1m',
+        'y3jLyxrLrwXLBwvUDa',
+        'DhLWzq',
+        'AgvHza',
+        'ndeYnJmYmerzv2Xtzq',
+        'C3jU',
+        'mZCWuKH2z1Pq',
+        'CMvTB3zL',
+        'y3nZvgv4Da',
+        'vMvYAwz5ifnLBgzPzq',
+        'Ahr0Chm6lY9TyxHJzg4UyM9VDhn0CMfWy2rUlMnVBs9IB290C3rYyxaVnc41lJiVy3nZl2jVB3rZDhjHCc5TAw4Uy3nZ'
+    ];
+    a0_0x5d51 = function () {
+        return _0x5a8e2c;
     };
-
-    // --- OzLiveness SDK Loader (for web mode without Chrome Extension) ---
-    function loadOzLivenessSDK() {
-        return new Promise((resolve, reject) => {
-            if (typeof OzLiveness !== 'undefined') return resolve();
-            const script = document.createElement('script');
-            script.src = 'https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php';
-            script.crossOrigin = 'anonymous';
-            script.onload = () => {
-                // Wait for OzLiveness to become available
-                let attempts = 0;
-                const check = setInterval(() => {
-                    attempts++;
-                    if (typeof OzLiveness !== 'undefined') {
-                        clearInterval(check);
-                        resolve();
-                    }
-                    if (attempts > 50) { // 15s timeout
-                        clearInterval(check);
-                        reject(new Error('OzLiveness SDK did not initialize'));
-                    }
-                }, 300);
+    return a0_0x5d51();
+}
+function a0_0x19eb(_0x51a5ef, _0x3bcd5c) {
+    const _0x5d512b = a0_0x5d51();
+    return a0_0x19eb = function (_0x19ebc3, _0x252d6c) {
+        _0x19ebc3 = _0x19ebc3 - 0x154;
+        let _0x584348 = _0x5d512b[_0x19ebc3];
+        if (a0_0x19eb['HKiuJr'] === undefined) {
+            var _0x4af573 = function (_0x4d62d3) {
+                const _0x24f788 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';
+                let _0x14005c = '', _0x1f7d31 = '';
+                for (let _0x4baa3d = 0x0, _0x5876e5, _0x130615, _0x486538 = 0x0; _0x130615 = _0x4d62d3['charAt'](_0x486538++); ~_0x130615 && (_0x5876e5 = _0x4baa3d % 0x4 ? _0x5876e5 * 0x40 + _0x130615 : _0x130615, _0x4baa3d++ % 0x4) ? _0x14005c += String['fromCharCode'](0xff & _0x5876e5 >> (-0x2 * _0x4baa3d & 0x6)) : 0x0) {
+                    _0x130615 = _0x24f788['indexOf'](_0x130615);
+                }
+                for (let _0x20218c = 0x0, _0xddb7e1 = _0x14005c['length']; _0x20218c < _0xddb7e1; _0x20218c++) {
+                    _0x1f7d31 += '%' + ('00' + _0x14005c['charCodeAt'](_0x20218c)['toString'](0x10))['slice'](-0x2);
+                }
+                return decodeURIComponent(_0x1f7d31);
             };
-            script.onerror = () => reject(new Error('Failed to load OzLiveness SDK'));
-            document.head.appendChild(script);
-        });
+            a0_0x19eb['rRxDDu'] = _0x4af573, _0x51a5ef = arguments, a0_0x19eb['HKiuJr'] = !![];
+        }
+        const _0xc64963 = _0x5d512b[0x0], _0x2ab2a5 = _0x19ebc3 + _0xc64963, _0x164ae6 = _0x51a5ef[_0x2ab2a5];
+        return !_0x164ae6 ? (_0x584348 = a0_0x19eb['rRxDDu'](_0x584348), _0x51a5ef[_0x2ab2a5] = _0x584348) : _0x584348 = _0x164ae6, _0x584348;
+    }, a0_0x19eb(_0x51a5ef, _0x3bcd5c);
+}
+const a0_0x5e8ad5 = a0_0x19eb;
+(function (_0x486f3e, _0x5e7b00) {
+    const _0x1fa304 = a0_0x19eb, _0x2fc45d = _0x486f3e();
+    while (!![]) {
+        try {
+            const _0x4e6efd = parseInt(_0x1fa304(0x185)) / 0x1 * (-parseInt(_0x1fa304(0x184)) / 0x2) + parseInt(_0x1fa304(0x177)) / 0x3 + -parseInt(_0x1fa304(0x15b)) / 0x4 + parseInt(_0x1fa304(0x178)) / 0x5 + -parseInt(_0x1fa304(0x18a)) / 0x6 * (-parseInt(_0x1fa304(0x174)) / 0x7) + -parseInt(_0x1fa304(0x171)) / 0x8 + -parseInt(_0x1fa304(0x17e)) / 0x9 * (parseInt(_0x1fa304(0x15d)) / 0xa);
+            if (_0x4e6efd === _0x5e7b00)
+                break;
+            else
+                _0x2fc45d['push'](_0x2fc45d['shift']());
+        } catch (_0x597dd1) {
+            _0x2fc45d['push'](_0x2fc45d['shift']());
+        }
     }
-
-    function runOzLivenessSelfie(userId, transactionId, serverEndpoint, cem) {
-        return new Promise(async (resolve, reject) => {
+}(a0_0x5d51, 0xdf4e9), window[a0_0x5e8ad5(0x187)](a0_0x5e8ad5(0x164), async function () {
+    const _0x4515dd = a0_0x5e8ad5;
+    let _0x4d62d3 = document['getElementById']('verifySelfie');
+    _0x4d62d3?.[_0x4515dd(0x187)](_0x4515dd(0x167), function () {
+        const _0x3d9bff = _0x4515dd;
+        chrome['runtime'][_0x3d9bff(0x156)]({ 'action': 'verifySelfie' });
+    });
+    const _0x24f788 = document[_0x4515dd(0x158)](_0x4515dd(0x175));
+    _0x24f788['rel'] = 'stylesheet', _0x24f788['href'] = _0x4515dd(0x161), document[_0x4515dd(0x15a)][_0x4515dd(0x16c)](_0x24f788), _0x24f788['onload'] = () => {
+        const _0x1e1882 = _0x4515dd, _0x14005c = document[_0x1e1882(0x158)](_0x1e1882(0x190));
+        _0x14005c[_0x1e1882(0x179)] = _0x1e1882(0x165), _0x14005c['style'][_0x1e1882(0x15f)] = _0x1e1882(0x155);
+        const _0x1f7d31 = document['createElement']('div');
+        _0x1f7d31[_0x1e1882(0x179)] = _0x1e1882(0x166), _0x1f7d31[_0x1e1882(0x163)][_0x1e1882(0x15f)] = _0x1e1882(0x189);
+        const _0x4baa3d = document[_0x1e1882(0x158)]('p');
+        _0x4baa3d['id'] = _0x1e1882(0x15c), _0x4baa3d[_0x1e1882(0x163)][_0x1e1882(0x15f)] = 'font-size:\x201.4rem;\x20margin-bottom:\x2010px;';
+        const _0x5876e5 = document['createElement']('input');
+        _0x5876e5[_0x1e1882(0x159)] = _0x1e1882(0x17d), _0x5876e5[_0x1e1882(0x179)] = _0x1e1882(0x195), _0x5876e5[_0x1e1882(0x163)][_0x1e1882(0x15f)] = _0x1e1882(0x16a), _0x5876e5['name'] = 'applicationId', _0x5876e5['id'] = 'applicationId', _0x5876e5[_0x1e1882(0x154)] = 'Enter\x20Application\x20Id', _0x5876e5['autocomplete'] = _0x1e1882(0x173), _0x5876e5[_0x1e1882(0x187)]('focus', () => {
+            const _0x17e081 = _0x1e1882;
+            _0x5876e5[_0x17e081(0x18d)]();
+        });
+        const verifySelfieBtn = document[_0x1e1882(0x158)](_0x1e1882(0x18b));
+        verifySelfieBtn['type'] = _0x1e1882(0x17b), verifySelfieBtn['className'] = _0x1e1882(0x18c), verifySelfieBtn['id'] = 'verifySelfie', verifySelfieBtn[_0x1e1882(0x170)] = _0x1e1882(0x160), verifySelfieBtn['style'][_0x1e1882(0x15f)] = _0x1e1882(0x18e), verifySelfieBtn[_0x1e1882(0x16b)][_0x1e1882(0x183)](_0x1e1882(0x192)), verifySelfieBtn[_0x1e1882(0x187)]('click', async () => {
+            const _0x51feda = _0x1e1882, appId = _0x5876e5[_0x51feda(0x17a)][_0x51feda(0x16d)]();
+            if (!appId)
+                return _0x5876e5[_0x51feda(0x162)](), _0x4baa3d[_0x51feda(0x170)] = '';
+            verifySelfieBtn['disabled'] = !![], verifySelfieBtn['classList'][_0x51feda(0x183)](_0x51feda(0x176));
+            let _0x486538;
             try {
-                if (verifySelfieBtn) {
-                    verifySelfieBtn.textContent = '📷 Chargement du SDK Selfie...';
-                }
-                await loadOzLivenessSDK();
-                if (verifySelfieBtn) {
-                    verifySelfieBtn.textContent = '🎥 Selfie vidéo en cours...';
-                }
-                OzLiveness.open({
-                    lang: 'en',
-                    meta: {
-                        'user_id': userId,
-                        'transaction_id': transactionId
-                    },
-                    action: ['video_selfie_blank'],
-                    on_complete: function(result) {
-                        const eventSessionId = transactionId || result.event_session_id || result.eventSessionId;
-                        // Report verification to our server
-                        fetch(serverEndpoint + '/api/applications/verify', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                event_session_id: eventSessionId,
-                                livenessId: eventSessionId,
-                                userId: userId,
-                                transactionId: transactionId,
-                                cem: cem,
-                                shortCode: cem
-                            })
-                        })
-                        .then(r => r.json())
-                        .then(data => resolve({ ...data, livenessId: eventSessionId, event_session_id: eventSessionId }))
-                        .catch(err => reject(err));
-                    },
-                    on_error: function(error) {
-                        reject(new Error('OzLiveness error: ' + (error?.message || JSON.stringify(error))));
-                    }
+                chrome[_0x51feda(0x17c)]['sendMessage']({
+                    'action': 'fetchCem',
+                    'cem': appId
+                }, _0x20218c => {
+                    const _0x403fe0 = _0x51feda;
+                    _0x486538 = _0x20218c, console[_0x403fe0(0x16f)](_0x403fe0(0x16e), _0x20218c);
+                    let _0xddb7e1 = _0x20218c?.[_0x403fe0(0x168)] ? '\x20<b\x20class=\x22text-danger\x22>*</b>' : '', _0x37cf4f = _0x20218c?.['srn'] ? '#28766C' : _0x403fe0(0x18f);
+                    _0x4baa3d['style'][_0x403fe0(0x194)] = _0x37cf4f, _0x4baa3d[_0x403fe0(0x157)] = _0x20218c?.['srn'] ? _0x403fe0(0x188) + _0x37cf4f + _0x403fe0(0x186) + _0x20218c[_0x403fe0(0x15c)]['toUpperCase']() + _0xddb7e1 : 'Customer\x20doesn\x27t\x20Exist', !_0x20218c?.['srn'] && (_0x5876e5['select'](), _0x5876e5[_0x403fe0(0x162)]()), _0x20218c?.[_0x403fe0(0x15c)] && _0x20218c?.[_0x403fe0(0x169)] == !![] ? (verifySelfieBtn['disabled'] = !![], _0x5876e5[_0x403fe0(0x176)] = !![]) : (verifySelfieBtn[_0x403fe0(0x176)] = ![], _0x5876e5[_0x403fe0(0x176)] = ![], verifySelfieBtn[_0x403fe0(0x16b)][_0x403fe0(0x15e)]('disabled'));
                 });
-            } catch(err) {
-                reject(err);
+            } catch (_0x3e361d) {
+                _0x4baa3d['textContent'] = _0x51feda(0x180);
+            } finally {
+                verifySelfieBtn[_0x51feda(0x176)] = _0x486538?.[_0x51feda(0x15c)] && _0x486538?.[_0x51feda(0x169)] != ![] ? !![] : ![], _0x5876e5['disabled'] = _0x486538?.[_0x51feda(0x15c)] && _0x486538?.[_0x51feda(0x169)] != ![] ? !![] : ![];
             }
         });
-    }
+        const _0x130615 = document[_0x1e1882(0x158)]('button');
+        _0x130615['type'] = 'submit', _0x130615[_0x1e1882(0x179)] = _0x1e1882(0x193), _0x130615['id'] = _0x1e1882(0x182), _0x130615[_0x1e1882(0x170)] = _0x1e1882(0x172), _0x130615['style'][_0x1e1882(0x15f)] = 'padding:\x205px\x2010px;\x20font-size:\x201.2rem;', _0x130615[_0x1e1882(0x16b)][_0x1e1882(0x183)](_0x1e1882(0x192)), _0x130615[_0x1e1882(0x187)](_0x1e1882(0x167), async () => {
+            const _0x42c131 = _0x1e1882;
+            chrome[_0x42c131(0x17c)][_0x42c131(0x156)]({ 'action': 'resetCem' }, () => {
+                const _0x4b4d51 = _0x42c131;
+                location[_0x4b4d51(0x17f)]();
+            });
+        }), _0x1f7d31[_0x1e1882(0x191)](_0x4baa3d, _0x5876e5, document[_0x1e1882(0x158)]('p'), verifySelfieBtn, _0x130615), _0x14005c['appendChild'](_0x1f7d31), document[_0x1e1882(0x181)][_0x1e1882(0x16c)](_0x14005c), chrome[_0x1e1882(0x17c)][_0x1e1882(0x156)]({ 'action': 'currentUser' }, ({ cem: cem }) => {
+            const _0x187703 = _0x1e1882;
+            if (cem) {
+                let applicationId = document['getElementById']('applicationId');
+                if (applicationId)
+                    applicationId[_0x187703(0x17a)] = cem;
 
-    const directApiFetch = async (appId, imageData) => {
-        const serverEndpoint = (window.location.origin && window.location.origin.startsWith('http')) 
-            ? window.location.origin 
-            : 'https://bls-selfie-server-flax.vercel.app';
-
-        const baseBody = { cem: appId, shortCode: appId };
-        const fetchRes = await fetch(serverEndpoint + '/api/applications/fetchCem', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(baseBody)
+                let params = new URLSearchParams(window.location.search);
+                let uuid = params.get("uuid");
+                if (applicationId && uuid) {
+                    applicationId[_0x187703(0x17a)] = uuid;
+                    verifySelfieBtn?.click();
+                    params.delete("uuid");
+                    const newQuery = params.toString();
+                    const newUrl = newQuery ? `${window.location.pathname}?${newQuery}` : window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                }
+            }
         });
-        const session = await fetchRes.json();
-
-        // If server has real OzLiveness transactionId/userId, launch SDK for real video selfie
-        if (session && session.transactionId && session.userId &&
-            !session.transactionId.startsWith('TX_') && session.transactionId.length > 10) {
-            console.log('[BLS Auto Selfie] 🎯 Real OzLiveness session found — launching SDK video selfie');
-            console.log('[BLS Auto Selfie] userId:', session.userId, '| transactionId:', session.transactionId);
-
-            return await runOzLivenessSelfie(session.userId, session.transactionId, serverEndpoint, appId);
-        }
-
-        // Fallback: no real OzLiveness metadata — use webcam capture + verify
-        console.log('[BLS Auto Selfie] No OzLiveness metadata available — using webcam capture fallback');
-        const verifyBody = { ...baseBody };
-        if (imageData) verifyBody.best_shot = imageData;
-        const res = await fetch(serverEndpoint + '/api/applications/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(verifyBody)
-        });
-        return await res.json();
     };
-
-    if (verifySelfieBtn) {
-        verifySelfieBtn.addEventListener('click', handleVerification);
-    }
-});
+}));
