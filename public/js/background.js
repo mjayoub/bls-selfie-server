@@ -634,10 +634,15 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
           url: "/routes/verifyLiveness.html",
         });
       } else {
+        let targetDoorstepUrl = "https://morocco.blsportugal.com/MAR/bls/doorstepservice";
+        let { obec } = await readLocalStorage(["obec"]);
+        if (obec?.originHost) {
+          targetDoorstepUrl = `https://${obec.originHost}/MAR/bls/doorstepservice`;
+        }
         await chrome.tabs.create({
-          url: _0xabc123[2],
+          url: targetDoorstepUrl,
         });
-        console.log("Tab created directly at doorstepservice page...");
+        console.log("Tab created directly at doorstepservice page:", targetDoorstepUrl);
       }
     })();
   }
@@ -756,10 +761,14 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
               } catch (i) {}
             }
           });
+          let targetDoorstepUrl = "https://morocco.blsportugal.com/MAR/bls/doorstepservice";
+          if (c.domain || c.host) {
+            targetDoorstepUrl = `https://${c.domain || c.host}/MAR/bls/doorstepservice`;
+          }
           await chrome.tabs.create({
-            url: _0xabc123[2],
+            url: targetDoorstepUrl,
           });
-          console.log("Tab created directly at doorstepservice page...");
+          console.log("Tab created directly at doorstepservice page:", targetDoorstepUrl);
         }, 0x1f4);
       }
     })();
