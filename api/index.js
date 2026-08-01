@@ -150,16 +150,18 @@ app.post('/api/applications/verify', async (req, res) => {
     let session = await getSession(mainCem);
 
     // Use real OzLiveness event_session_id or folder_id as livenessId when available
-    const livenessId = req.body.event_session_id || req.body.eventSessionId ||
-                       req.body.folder_id || req.body.folderId ||
-                       req.body.result_id || req.body.resultId ||
-                       "LIVENESS_OK_" + Date.now();
+    const rawLivenessId = req.body.event_session_id || req.body.eventSessionId ||
+                          req.body.folder_id || req.body.folderId ||
+                          req.body.result_id || req.body.resultId ||
+                          (req.body.livenessId && !req.body.livenessId.startsWith('LIVENESS_OK_') ? req.body.livenessId : null);
+
+    const livenessId = rawLivenessId || null;
 
     if (!session) {
         session = { cem: mainCem, status: true, livenessId };
     } else {
         session.status = true;
-        session.livenessId = livenessId;
+        session.livenessId = livenessId || session.livenessId;
         session.verifiedAt = Date.now();
     }
 
@@ -171,7 +173,7 @@ app.post('/api/applications/verify', async (req, res) => {
 
     await setSession(mainCem, session);
 
-    console.log(`[Redis] ✅ Selfie VERIFIED for: ${rawId} → livenessId: ${livenessId.substring(0, 30)}...`);
+    console.log(`[Redis] ✅ Selfie VERIFIED for: ${rawId} → livenessId: ${livenessId ? livenessId.substring(0, 30) : 'IMAGE_ONLY'}...`);
     return res.json({
         success: true,
         message: "Selfie verified successfully",
