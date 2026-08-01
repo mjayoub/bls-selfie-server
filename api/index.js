@@ -117,7 +117,7 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         session = {
             cem: mainCem,
             shortCode: shortCode,
-            // Only use bot-provided values; never generate fake userId/transactionId
+            // Accept bot-provided userId/transactionId on creation too
             userId: req.body.userId || null,
             transactionId: req.body.transactionId || null,
             srn: "SRN-" + Date.now(),
@@ -128,14 +128,31 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         };
         await setSession(mainCem, session);
         await setShortCodeCem(shortCode, mainCem);
-        console.log(`[Redis] 🔄 Session RESET/Registered: CEM=${mainCem.substring(0, 20)}... | SC=${session.shortCode}`);
-    } else if (req.body.shortCode && /^\d{4,8}$/.test(req.body.shortCode) && !session.shortCode) {
-        session.shortCode = req.body.shortCode;
-        await setSession(mainCem, session);
-        await setShortCodeCem(req.body.shortCode, mainCem);
+        console.log(`[Redis] 🔄 Session RESET/Registered: CEM=${mainCem.substring(0, 20)}... | SC=${session.shortCode} | userId=${session.userId}`);
+    } else {
+        // Session exists and no reset: update shortCode mapping if needed
+        let changed = false;
+        if (req.body.shortCode && /^\d{4,8}$/.test(req.body.shortCode) && !session.shortCode) {
+            session.shortCode = req.body.shortCode;
+            await setShortCodeCem(req.body.shortCode, mainCem);
+            changed = true;
+        }
+        // Also update userId/transactionId if provided and not already set (initial page load)
+        if (req.body.userId && !session.userId) {
+            session.userId = req.body.userId;
+            changed = true;
+        }
+        if (req.body.transactionId && !session.transactionId) {
+            session.transactionId = req.body.transactionId;
+            changed = true;
+        }
+        if (changed) {
+            session.updatedAt = Date.now();
+            await setSession(mainCem, session);
+        }
     }
 
-    console.log(`[Redis] Registered: CEM=${mainCem.substring(0, 20)}... | SC=${session.shortCode} | Status=${session.status}`);
+    console.log(`[Redis] Registered: CEM=${mainCem.substring(0, 20)}... | SC=${session.shortCode} | userId=${session.userId} | Status=${session.status}`);
     return res.json(session);
 });
 
