@@ -369,9 +369,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
               })($.ajax);
               history.pushState({}, "", "/MAR/appointment/livenessrequest");
               console.log("📥 Injecting OzForensics SDK...");
+              const hostname = window.location.hostname.toLowerCase();
+              const ozSdkUrl = "https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php";
+              console.log("📥 OzForensics endpoint for:", hostname);
               const k = document.createElement("script");
-              k.src =
-                "https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php";
+              k.src = ozSdkUrl;
               k.crossOrigin = "anonymous";
               k.onload = () => {
                 console.log("SDK loaded.");

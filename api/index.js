@@ -85,7 +85,7 @@ app.post('/api/applications/fetchCem', async (req, res) => {
     }
 
     // Mode 'update': merge new fields into existing session without resetting
-    // Used when bot navigates from Page 1 → Page 2 and needs to add userId/transactionId
+    // Used when bot navigates from Page 1 → Page 2 and needs to add userId/transactionId/userAgent
     if (isUpdate && session) {
         let changed = false;
         if (req.body.userId && req.body.userId !== session.userId) {
@@ -96,6 +96,17 @@ app.post('/api/applications/fetchCem', async (req, res) => {
             session.transactionId = req.body.transactionId;
             changed = true;
         }
+        if (req.body.userAgent && req.body.userAgent !== session.userAgent) {
+            session.userAgent = req.body.userAgent;
+            changed = true;
+        }
+        if (req.body.ip && req.body.ip !== session.ip) {
+            session.ip = req.body.ip;
+            changed = true;
+        } else if (!session.ip) {
+            session.ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null;
+            changed = true;
+        }
         if (req.body.shortCode && /^\d{4,8}$/.test(req.body.shortCode) && !session.shortCode) {
             session.shortCode = req.body.shortCode;
             await setShortCodeCem(req.body.shortCode, mainCem);
@@ -104,7 +115,7 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         if (changed) {
             session.updatedAt = Date.now();
             await setSession(mainCem, session);
-            console.log(`[Redis] 📝 Session UPDATED: CEM=${mainCem.substring(0, 20)}... | userId=${session.userId} | txId=${session.transactionId?.substring(0, 20)}`);
+            console.log(`[Redis] 📝 Session UPDATED: CEM=${mainCem.substring(0, 20)}... | userId=${session.userId} | txId=${session.transactionId?.substring(0, 20)} | UA=${session.userAgent ? 'Present' : 'None'}`);
         }
         return res.json(session);
     }
@@ -117,9 +128,10 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         session = {
             cem: mainCem,
             shortCode: shortCode,
-            // Accept bot-provided userId/transactionId on creation too
             userId: req.body.userId || null,
             transactionId: req.body.transactionId || null,
+            userAgent: req.body.userAgent || req.headers['user-agent'] || null,
+            ip: req.body.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || null,
             srn: "SRN-" + Date.now(),
             status: false,
             livenessId: null,
@@ -130,20 +142,23 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         await setShortCodeCem(shortCode, mainCem);
         console.log(`[Redis] 🔄 Session RESET/Registered: CEM=${mainCem.substring(0, 20)}... | SC=${session.shortCode} | userId=${session.userId}`);
     } else {
-        // Session exists and no reset: update shortCode mapping if needed
+        // Session exists and no reset: update shortCode mapping and userAgent if needed
         let changed = false;
         if (req.body.shortCode && /^\d{4,8}$/.test(req.body.shortCode) && !session.shortCode) {
             session.shortCode = req.body.shortCode;
             await setShortCodeCem(req.body.shortCode, mainCem);
             changed = true;
         }
-        // Also update userId/transactionId if provided and not already set (initial page load)
         if (req.body.userId && !session.userId) {
             session.userId = req.body.userId;
             changed = true;
         }
         if (req.body.transactionId && !session.transactionId) {
             session.transactionId = req.body.transactionId;
+            changed = true;
+        }
+        if (req.body.userAgent && !session.userAgent) {
+            session.userAgent = req.body.userAgent;
             changed = true;
         }
         if (changed) {
