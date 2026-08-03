@@ -369,9 +369,22 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
               })($.ajax);
               history.pushState({}, "", "/MAR/appointment/livenessrequest");
               console.log("📥 Injecting OzForensics SDK...");
+              // Detect which OzForensics endpoint to use based on the BLS site
               const hostname = window.location.hostname.toLowerCase();
-              const ozSdkUrl = "https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php";
-              console.log("📥 OzForensics endpoint for:", hostname);
+              let ozSdkUrl;
+              if (hostname.includes('blsportugal')) {
+                // Portugal BLS (morocco.blsportugal.com, etc.)
+                ozSdkUrl = "https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php";
+                console.log("📥 Using BLS Portugal/Morocco OzForensics endpoint");
+              } else if (hostname.includes('blsspain') || hostname.includes('blsitaly') || hostname.includes('blsindia')) {
+                // Spain / Italy / India BLS
+                ozSdkUrl = "https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php";
+                console.log("📥 Using BLS Spain/International OzForensics endpoint");
+              } else {
+                // Default fallback
+                ozSdkUrl = "https://web-sdk.spain.prod.ozforensics.com/blsinternational/plugin_liveness.php";
+                console.log("📥 Using OzForensics fallback endpoint for:", hostname);
+              }
               const k = document.createElement("script");
               k.src = ozSdkUrl;
               k.crossOrigin = "anonymous";
@@ -425,6 +438,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
                       url: _endpoint + "/api/applications/verify",
                       data: {
                         ...n,
+                        event_session_id: n.event_session_id || n.folder_id || n.result_id,
                         userId: userId,
                         transactionId: transactionId,
                         cem: cem,
@@ -433,15 +447,21 @@ chrome.tabs.onUpdated.addListener(async (tabId, change, tab) => {
                       retries: 0x3,
                       retryInterval: 0x7d0,
                     })
-                      .done(() => {
+                      .done((serverResponse) => {
                         let r = document.getElementById("loader");
                         if (r) {
                           r.remove();
                         }
+                        console.log("🔍 [NOVA-selfie] OzLiveness on_complete result:", n);
+                        console.log("🔍 [NOVA-selfie] Server verify response:", serverResponse);
+
                         if (
-                          n.analyses?.["quality"]?.["resolution"] ===
-                            "success" ||
-                          n.state === "finished"
+                          serverResponse?.success === true ||
+                          n.analyses?.["quality"]?.["resolution"] === "success" ||
+                          n.state === "finished" ||
+                          n.folder_id ||
+                          n.event_session_id ||
+                          n.result_id
                         ) {
                           o.className = "btn btn-success";
                           o.textContent = "Selfie is Passed...";
