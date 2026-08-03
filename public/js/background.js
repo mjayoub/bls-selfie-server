@@ -679,48 +679,46 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
           cem: cem,
         });
         let a = Fetch(fetch);
-        let b = await a(_0xabc123[0x0] + "/api/applications/fetchCem", {
-          retryDelay: 0x4b0,
-          retryOn: async (g, h, i) => {
-            if (g > 0x6) {
-              return false;
+        let c = null;
+        let userId = null;
+        let transactionId = null;
+
+        for (let attempt = 0; attempt < 10; attempt++) {
+            try {
+                let b = await a(_0xabc123[0x0] + "/api/applications/fetchCem", {
+                    retryDelay: 0x4b0,
+                    retryOn: async (g, h, i) => {
+                        if (g > 0x3) return false;
+                        return (h !== null || [0x190, 0x1f4, 0x1f7, 0x1f6, 0x1f8, 0x1ad].includes(i?.["status"]));
+                    },
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                    body: new URLSearchParams({
+                        cem: cem,
+                    }),
+                });
+                if (b && b.ok) {
+                    c = await b.json();
+                    userId = c.userId;
+                    transactionId = c.transactionId;
+                    if (userId && transactionId) {
+                        console.log(`[NOVA-selfie] ✅ Metadonnées OzLiveness récupérées avec succès (Essai ${attempt + 1}): userId=${userId}`);
+                        break;
+                    }
+                }
+            } catch (g) {
+                console.log("Error fetchResult...", g);
             }
-            if (
-              h !== null ||
-              [0x190, 0x1f4, 0x1f7, 0x1f6, 0x1f8, 0x1ad].includes(i?.["status"])
-            ) {
-              console.log(
-                "MK Request (attmpt-%s)...%O / Status: %s",
-                g,
-                h,
-                i?.["status"]
-              );
-              return true;
-            }
-          },
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          body: new URLSearchParams({
-            cem: cem,
-          }),
-        })["catch"](async (g) => {
-          console.log("Error fetchResult...", g);
-          throw g;
-        });
-        if (!b.ok) {
-          throw "Error fetching CEM data...Status: " + b.status;
+            if (attempt < 9) await new Promise(r => setTimeout(r, 1000));
         }
-        let c = await b.json();
-        console.log("Payload received: ", c);
-        let transactionId = c.transactionId;
-        let userId = c.userId;
-        let d = c.ip;
-        let e = c.userAgent;
+
+        let d = c?.ip;
+        let e = c?.userAgent;
         let f =
-          c.proxy && c.proxy.split(":").length >= 4
+          c?.proxy && c.proxy.split(":").length >= 4
             ? {
                 host: c.proxy.split(":")[0],
                 port: c.proxy.split(":")[1],
@@ -728,7 +726,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
                 password: c.proxy.split(":")[3],
               }
             : null;
-        sendResponse(c);
+        sendResponse(c || {});
         if (!userId || !transactionId) {
           return await Promise.allSettled([
             setLocalStorage({
