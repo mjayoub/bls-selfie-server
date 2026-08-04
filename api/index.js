@@ -78,10 +78,17 @@ app.post('/api/applications/fetchCem', async (req, res) => {
     const shouldReset = req.body.reset === true || req.body.reset === 'true' || req.body.forceReset;
     const isUpdate = req.body.mode === 'update';
 
-    // Preserve already-verified sessions (don't allow re-registration)
+    // Preserve already-verified sessions ONLY if transactionId matches current session
     if (session && (session.status === true || session.status === 'true') && session.livenessId) {
-        console.log(`[Redis] 🔒 Preserving ALREADY VERIFIED session: SC=${session.shortCode} | LivenessId=${session.livenessId}`);
-        return res.json(session);
+        if (!req.body.transactionId || req.body.transactionId === session.transactionId) {
+            console.log(`[Redis] 🔒 Preserving ALREADY VERIFIED session: SC=${session.shortCode} | LivenessId=${session.livenessId}`);
+            return res.json(session);
+        } else {
+            console.log(`[Redis] 🔄 New transactionId detected (${req.body.transactionId?.substring(0, 15)}...) — resetting old verified status`);
+            session.status = false;
+            session.livenessId = null;
+            session.best_shot = null;
+        }
     }
 
     // Mode 'update': merge new fields into existing session without resetting
@@ -94,6 +101,9 @@ app.post('/api/applications/fetchCem', async (req, res) => {
         }
         if (req.body.transactionId && req.body.transactionId !== session.transactionId) {
             session.transactionId = req.body.transactionId;
+            session.status = false;      // Reset stale status for new transaction
+            session.livenessId = null;  // Reset stale livenessId for new transaction
+            session.best_shot = null;   // Reset stale best_shot for new transaction
             changed = true;
         }
         if (req.body.userAgent && req.body.userAgent !== session.userAgent) {
